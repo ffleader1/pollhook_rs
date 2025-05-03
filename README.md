@@ -1,45 +1,44 @@
-# Webhook-to-Polling Conversion Service
+# Pollhook: Webhook-to-Polling Conversion Service
 
-A flexible Rust-based service that allows converting webhook-based integrations to polling-based ones, helping you use webhook-based services in environments where exposing public endpoints is challenging.
+A flexible Rust-based service that converts webhook-based integrations to polling-based ones, enabling webhook usage in environments where exposing public endpoints is challenging.
 
-> **Key Benefit**: Many cloud providers offer cheap or even free solutions with a public IP address that can receive webhooks. This service lets you host a lightweight webhook receiver in the cloud, while polling from your more powerful home or office machines to process the data. Perfect for developers with robust local development environments but limited public internet exposure.
+> **Key Benefit**: Deploy on free cloud instances with public IPs to receive webhooks, while processing data on your powerful local machines. Perfect for development environments or restrictive network setups.
 
 ## 🚀 Overview
 
-Many cloud services use webhooks to notify your application about events, requiring a public endpoint to receive these notifications.
+This service creates a lightweight bridge between webhook providers and your local environment:
 
-**This service leverages affordable (often free) cloud hosting options with public IP addresses to:**
+1. Receives webhooks on a public cloud instance
+2. Handles webhook verification flows
+3. Caches received data with custom aliases
+4. Allows secure polling from your local machines
 
-1. Provide a lightweight public endpoint that can receive webhook calls
-2. Support webhook verification flows from various providers
-3. Store received webhook data
-4. Allow your more powerful local machines to poll for this data instead of exposing endpoints
+## 🌐 Cloud Deployment Options
 
-This setup gives you the best of both worlds - an always-available public webhook endpoint on an inexpensive cloud instance, while processing the data on your more powerful local hardware. Perfect for development environments, restrictive network setups, or situations where running comprehensive processing on cloud instances would be costly.
+Many providers offer free VM instances with public IPs:
+
+- **Oracle Cloud**: Always Free tier includes 2 AMD-based Compute VMs
+- **Google Cloud**: Free tier includes 1 f1-micro instance
+- **AWS**: 12-month free tier includes t2.micro/t3.micro instances
+- **Azure**: 12-month free tier includes B1s instances
+
+**Pro Tip**: Get free TLS certificates from Cloudflare by:
+1. Register a domain (or use a free subdomain service)
+2. Add it to Cloudflare's free plan
+3. Use Cloudflare's Origin CA to generate certificates
+4. Configure the service with your certificates
 
 ## ✨ Features
 
-- **Flexible Verification**: Handles various webhook verification schemes with configurable token and challenge extraction
-- **Dynamic Path Routing**: Support for wildcards and path variations
-- **Adaptive Response Generation**: Customizable response formats and content types
-- **Configurable Through YAML**: No code changes needed for new webhook integrations
-- **Multiple Extraction Methods**: Get tokens, challenges, and data from:
-    - URL Query Parameters
-    - Request Headers
-    - Request Body (JSON)
-    - URL Path Segments
-
-## 📋 Requirements
-
-- Rust 1.54 or newer
-- Actix Web 4.0+
-- Serde and Serde YAML for configuration
-- Environment with public internet access
+- **Webhook Verification**: Handles various verification schemes
+- **Data Caching**: Stores webhook payloads with custom aliases
+- **Secure Polling**: Retrieve data with token authentication
+- **YAML Configuration**: No code changes needed for new integrations
+- **TLS Support**: Optional HTTPS with certificate configuration
 
 ## 🔧 Installation
 
 1. Clone the repository:
-
 ```bash
 git clone https://github.com/yourusername/webhook-poller
 cd webhook-poller
@@ -58,6 +57,7 @@ cargo build --release
 ```bash
 export CONFIG_FILE_PATH=./config_webhook.yaml
 export VERIFY_TOKEN=your_secret_token
+export DATA_RETRIEVE_TOKEN=your_polling_token
 export PORT=8080
 export CACHE_TTL=300
 export POLLING_TIMEOUT=20
@@ -70,7 +70,7 @@ The service uses a YAML configuration file. Here's a sample configuration:
 
 ```yaml
 verification:
-  path: /verification/webhook
+  path: /pollhook/webhook
   method: GET  # Default is GET if not specified
   token:
     in: query
@@ -83,8 +83,10 @@ verification:
     data: "@challenge"
 
 data:
-  hello:
-    path: /update/{id}
+  meta_event:
+    path: /callhook/meta
+    method: POST
+
 ```
 
 ### Configuration Options
@@ -104,7 +106,6 @@ data:
     - `data`: Response data template (use @challenge for the challenge value)
     - `in_path`: For JSON responses, specifies where to put the data
 
-### Path Wildcards
 
 You can use `...` as a wildcard in paths:
 
@@ -116,8 +117,7 @@ verification:
 This will match paths like:
 - `/callhook/facebook/callback`
 
-### Sample Yaml
-### Configuration Options
+#### Sample Yaml For Configuration Options
 
 ```yaml
 # Basic query parameter verification
@@ -164,35 +164,77 @@ verification:
     data: "@challenge" # Returns challenge value in JSON format: {"verification": {"resp": "value"}}
 ```
 
+#### Data Section
+
+This section defines endpoints for capturing webhook data. The configuration below specifies that any event sent to the path `/callhook/meta` using the POST method will be cached for later polling.
+
+The system uses **alias** to differentiate between events sent to different endpoints. In this example, the **alias** is `meta_event`:
+
+```yaml
+data:
+  meta_event:
+    path: /callhook/meta
+    method: POST
+```
+#### Polling Section
+
+To retrieve webhook data from your local environment, use the following command:
+  
+```bash
+curl -H "Authorization: Bearer your_polling_token" \
+     https://your-domain.com/pollhook/{alias}
+```
+The response varies based on the **alias** used. For the meta_event alias, you'll receive a response similar to this:
+
+```json
+{
+  "success": true,
+  "message": "Retrieved 1 items after polling",
+  "count": 1,
+  "data": [
+    {
+      "_cache_key": "9282e48fbaf9b4f320bd3af07852387c41a2c6f45c559e6f7817412c8818cfe3",
+      "entry": [
+        {
+          "id": "578564948682799",
+          "messaging": [
+            {
+              "message": {
+                "mid": "m_X9N_5uR02eMA3iEvsGa_HeEQSg_J7Zyru3LWfIH4ajqc-AygIDOlNLVlOS8oW7WCtA9yVcGVLqC-9HBXUO_9Ug",
+                "text": "hello"
+              },
+              "recipient": {
+                "id": "578564948682799"
+              },
+              "sender": {
+                "id": "29393601576952459"
+              },
+              "timestamp": 1746313252871
+            }
+          ],
+          "time": 1746313253959
+        }
+      ],
+      "object": "page"
+    }
+  ]
+}
+```
+* _cache_key: The unique identifier for the cached message stored in memory
+* entry: The actual webhook payload
+
 ## 🚀 Usage
 
 1. Configure your yaml file for verification and data retrieval
 
-2. Start the server.
+2. Config necessary IP, domain name and SSL/TLS settings
 
-3. Use the polling client (in development) to retrieve webhook data from your local network
+3. Start the server in your cloud virtual machine.
+
+4. Use your polling client to retrieve webhook data from your local network
 
 
-## 🔒 Security Considerations
-
-- Store your `VERIFY_TOKEN` securely
-- Consider implementing rate limiting to prevent abuse
-- For production use, add authentication to your polling endpoints
-- Use HTTPS for all communications
-
-## 🔄 Webhook Providers Tested
-
-- Facebook Messenger Platform
-- Slack Events API
-- GitHub Webhooks
-- Generic webhook systems
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
