@@ -4,19 +4,19 @@ use tokio::sync::Mutex;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 use std::env;
-
+use serde_json::Value as JsonValue;
 
 #[derive(Debug, Clone)]
 pub struct OrderedCache {
-    caches: HashMap<String, Arc<MokaCache<String, Vec<u8>>>>,
+    caches: HashMap<String, Arc<MokaCache<String, JsonValue>>>,
     orders: HashMap<String, Arc<Mutex<VecDeque<String>>>>,
 }
 
 impl OrderedCache {
     pub fn new(aliases: Vec<String>) -> Self {
         let ttl_seconds: u64 = env::var("CACHE_TTL")
-            .unwrap_or_else(|_| "300".to_string())
-            .parse()
+            .ok()
+            .and_then(|val| val.parse::<u64>().ok())
             .unwrap_or(300);
 
         let mut caches = HashMap::new();
@@ -38,7 +38,7 @@ impl OrderedCache {
         Self { caches, orders }
     }
 
-    pub async fn insert(&self, alias: &str, key: String, value: Vec<u8>) -> Result<(), &'static str> {
+    pub async fn insert(&self, alias: &str, key: String, value: JsonValue) -> Result<(), &'static str> {
         let cache = self.caches.get(alias).ok_or("Alias not found")?;
         let order = self.orders.get(alias).ok_or("Alias not found")?;
 
@@ -53,11 +53,11 @@ impl OrderedCache {
         Ok(())
     }
 
-    pub async fn get(&self, alias: &str, key: &str) -> Option<Vec<u8>> {
+    pub async fn get(&self, alias: &str, key: &str) -> Option<JsonValue> {
         self.caches.get(alias)?.get(key).await
     }
 
-    pub async fn remove_oldest(&self, alias: &str, n: usize) -> Result<Vec<(String, Vec<u8>)>, &'static str> {
+    pub async fn remove_oldest(&self, alias: &str, n: usize) -> Result<Vec<(String, JsonValue)>, &'static str> {
         let cache = self.caches.get(alias).ok_or("Alias not found")?;
         let order = self.orders.get(alias).ok_or("Alias not found")?;
 
@@ -76,7 +76,7 @@ impl OrderedCache {
         Ok(removed)
     }
 
-    pub async fn remove_newest(&self, alias: &str, n: usize) -> Result<Vec<(String, Vec<u8>)>, &'static str> {
+    pub async fn remove_newest(&self, alias: &str, n: usize) -> Result<Vec<(String, JsonValue)>, &'static str> {
         let cache = self.caches.get(alias).ok_or("Alias not found")?;
         let order = self.orders.get(alias).ok_or("Alias not found")?;
 

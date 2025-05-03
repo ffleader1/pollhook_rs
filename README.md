@@ -59,6 +59,9 @@ cargo build --release
 export CONFIG_FILE_PATH=./config_webhook.yaml
 export VERIFY_TOKEN=your_secret_token
 export PORT=8080
+export CACHE_TTL=300
+export POLLING_TIMEOUT=20
+export POLL_ITEMS_COUNT=5
 ```
 
 ## 🛠️ Configuration

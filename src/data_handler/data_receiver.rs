@@ -19,8 +19,8 @@ pub async fn data_receiver(
         body.extend_from_slice(&chunk);
     }
 
-    // Validate it's valid JSON
-    serde_json::from_slice::<serde_json::Value>(&body)?;
+    // Parse and validate it's valid JSON
+    let json_value: serde_json::Value = serde_json::from_slice(&body)?;
 
     // Create hash of the content for the key
     let mut hasher = Sha256::new();
@@ -28,8 +28,8 @@ pub async fn data_receiver(
     let hash = hasher.finalize();
     let key = hex::encode(hash);
 
-    // Store the raw bytes in cache
-    cache.insert(&alias, key.clone(), body.to_vec()).await
+    // Store the JSON value in cache
+    cache.insert(&alias, key.clone(), json_value).await
         .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
 
     Ok((alias, key))

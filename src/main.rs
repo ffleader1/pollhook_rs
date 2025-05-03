@@ -3,6 +3,7 @@ mod webhook_config;
 mod data_handler;
 mod endpoint_handler;
 mod cache;
+mod polling_handler;
 
 use verification_handler::{ verification_config};
 use webhook_config::WebhookConfig;

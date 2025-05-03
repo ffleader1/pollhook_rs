@@ -1,9 +1,14 @@
 use actix_web::{web, HttpRequest, Responder, HttpResponse};
 use crate::verification_handler::verification::verification_handler;
+use crate::polling_handler::data_polling::{retrieve_data_with_polling, DataResponse};
 use crate::webhook_config::WebhookConfig;
 use crate::cache::{OrderedCache};
 use crate::data_handler::data_receiver::data_receiver;
 use log::{info, error};
+use std::time::Duration;
+use tokio::time::{sleep, timeout};
+use serde::{ Serialize, Deserialize};
+use serde_json::Value as JsonValue;
 
 pub async fn verification_endpoint_handler(
     req: HttpRequest,
@@ -40,10 +45,24 @@ pub async fn data_endpoint_handler(
     }
 }
 
+
 pub async fn data_retrieval_handler(
     alias: String,
     config: web::Data<WebhookConfig>,
     cache: web::Data<OrderedCache>,
 ) -> impl Responder {
-    // TODO: RANDOM SHIT LOGIC TO GET DATA FOMR CACHE
+    let polling_config = config.get_polling_config_owned();
+
+    match retrieve_data_with_polling(&alias, &cache, polling_config).await {
+        Ok(response) => HttpResponse::Ok().json(response),
+        Err(e) => {
+            error!("Data retrieval error for alias {}: {}", alias, e);
+            HttpResponse::InternalServerError().json(DataResponse {
+                status: "error".to_string(),
+                message: format!("Failed to retrieve data: {}", e),
+                count: 0,
+                data: Vec::new(),
+            })
+        }
+    }
 }
