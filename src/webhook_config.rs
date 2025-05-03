@@ -8,11 +8,11 @@ use crate::data_handler::data_config;
 #[derive(Clone, Debug, Deserialize)]
 pub struct WebhookConfig {
     verification: verification_config::VerificationConfig,
-    pub(crate) data: data_config::DataMap,
+    data: data_config::DataMap,
 }
 
 impl WebhookConfig {
-  
+
     pub fn set_token(&mut self, token: String) {
         self.verification.set_expected_token(token)
     }
@@ -21,6 +21,10 @@ impl WebhookConfig {
         &self.verification
     }
 
+    pub fn get_data_config(&self) -> &data_config::DataMap {
+        &self.data
+    }
+    
     pub fn get_verification_config_owned(&self) -> verification_config::VerificationConfig {
         self.verification.clone()
     }

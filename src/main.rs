@@ -60,18 +60,43 @@ async fn main() -> std::io::Result<()> {
 
     let method = actix_web::http::Method::try_from(config.get_verification_config().get_verification_method().as_str()).unwrap_or(actix_web::http::Method::GET);
 
-    let data_routes = config.data.get_path_method_alias_vec();
-    
+    let data_routes = config.get_data_config().get_path_method_alias_vec();
+
+
     HttpServer::new(move || {
         let method = method.clone();
-        App::new()
+        let mut app = App::new()
             .app_data(web::Data::new(config.clone()))
             .route(
                 "/verification/{path:.*}",
                 web::route()
                     .guard(guard::fn_guard(move |ctx| ctx.head().method == method))
                     .to(endpoint_handler::verification_endpoint_handler),
-            )
+            );
+
+        // Add routes for each data endpoint
+        for (alias, path, method_str) in &data_routes {
+            let route_path = if path.starts_with('/') {
+                path.clone()
+            } else {
+                format!("/{}", path)
+            };
+
+            let alias_clone = alias.clone();
+            let method = actix_web::http::Method::try_from(method_str.as_str())
+                .unwrap_or(actix_web::http::Method::GET);
+
+            app = app.route(
+                &route_path,
+                web::route()
+                    .guard(guard::fn_guard(move |ctx| ctx.head().method == method))
+                    .to(move |req, payload, config| {
+                        endpoint_handler::data_endpoint_handler(req, payload, alias_clone.clone(), config)
+                    }),
+            );
+        }
+
+        app
     })
         .bind(("0.0.0.0", port))?
         .run()

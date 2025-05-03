@@ -14,3 +14,17 @@ pub async fn verification_endpoint_handler(
         verification_config,  
     ).await
 }
+
+pub async fn data_endpoint_handler(
+    req: HttpRequest,
+    payload: web::Payload,
+    alias: String,
+    config: web::Data<WebhookConfig>,
+) -> impl Responder {
+    let verification_config = config.get_verification_config_owned(); //This clone
+    verification_handler(
+        req,
+        payload,
+        verification_config,
+    ).await
+}
