@@ -7,7 +7,7 @@ use serde_json::Value as JsonValue;
 
 #[derive(Serialize)]
 pub struct DataResponse {
-    pub status: String,
+    pub success: bool,
     pub message: String,
     pub count: usize,
     pub data: Vec<serde_json::Value>,
@@ -22,7 +22,7 @@ pub async fn retrieve_data_with_polling(
     // Check if alias exists
     if !cache.has_alias(alias) {
         return Ok(DataResponse {
-            status: "error".to_string(),
+            success: false,
             message: format!("Alias '{}' not found", alias),
             count: 0,
             data: Vec::new(),
@@ -36,7 +36,7 @@ pub async fn retrieve_data_with_polling(
         Ok(Ok(data_items)) if !data_items.is_empty() => {
             let data_with_keys = add_cache_keys_to_data(data_items);
             Ok(DataResponse {
-                status: "success".to_string(),
+                success: true,
                 message: format!("Retrieved {} items after polling", data_with_keys.len()),
                 count: data_with_keys.len(),
                 data: data_with_keys,
@@ -44,7 +44,7 @@ pub async fn retrieve_data_with_polling(
         }
         Ok(Ok(_)) | Ok(Err(_)) | Err(_) => {
             Ok(DataResponse {
-                status: "timeout".to_string(),
+                success: false,
                 message: "No data available within timeout period".to_string(),
                 count: 0,
                 data: Vec::new(),

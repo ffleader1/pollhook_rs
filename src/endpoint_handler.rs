@@ -67,7 +67,7 @@ pub async fn data_retrieval_handler_with_auth(
                     Err(e) => {
                         error!("Data retrieval error for alias {}: {}", alias, e);
                         HttpResponse::InternalServerError().json(DataResponse {
-                            status: "error".to_string(),
+                            success: false,
                             message: format!("Failed to retrieve data: {}", e),
                             count: 0,
                             data: Vec::new(),
