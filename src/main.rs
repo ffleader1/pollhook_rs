@@ -1,6 +1,7 @@
 mod verification_handler;
 mod webhook_config;
 mod data_handler;
+mod endpoint_handler;
 
 use verification_handler::{ verification_config};
 use webhook_config::WebhookConfig;
@@ -57,8 +58,10 @@ async fn main() -> std::io::Result<()> {
     info!("Using config file: {}", config_path);
 
 
-    let method = actix_web::http::Method::try_from(config.get_verification_method().as_str()).unwrap_or(actix_web::http::Method::GET);
+    let method = actix_web::http::Method::try_from(config.get_verification_config().get_verification_method().as_str()).unwrap_or(actix_web::http::Method::GET);
 
+    let data_routes = config.data.get_path_method_alias_vec();
+    
     HttpServer::new(move || {
         let method = method.clone();
         App::new()
@@ -67,7 +70,7 @@ async fn main() -> std::io::Result<()> {
                 "/verification/{path:.*}",
                 web::route()
                     .guard(guard::fn_guard(move |ctx| ctx.head().method == method))
-                    .to(verification_handler::verification::verification_handler),
+                    .to(endpoint_handler::verification_endpoint_handler),
             )
     })
         .bind(("0.0.0.0", port))?

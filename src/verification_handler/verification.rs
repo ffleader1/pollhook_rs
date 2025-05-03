@@ -4,13 +4,16 @@ use bytes::{Bytes, BytesMut};
 use log::{debug, error};
 use futures::StreamExt;
 use crate::verification_handler::{extractors, verification_config};
+use crate::verification_handler::verification_config::VerificationConfig;
 use crate::webhook_config::WebhookConfig;
+
+
 
 // Handler for all webhook requests
 pub async fn verification_handler(
     req: HttpRequest,
     payload: web::Payload,
-    config: web::Data<WebhookConfig>,
+    config: VerificationConfig,
 ) -> impl Responder {
     // Collect the payload if body extraction is needed
     let mut body = BytesMut::new();
@@ -35,7 +38,7 @@ pub async fn verification_handler(
     let body_bytes = Bytes::from(body);
 
     // Call our verification function with config file path
-    match verify_from_config(req, Some(body_bytes), config.get_verification_config()).await {
+    match verify_from_config(req, Some(body_bytes), &config).await {
         Ok(response) => response,
         Err(e) => {
             error!("Verification failed: {}", e);
@@ -47,7 +50,7 @@ pub async fn verification_handler(
 async fn verify_from_config(
     req: HttpRequest,
     body: Option<Bytes>,
-    config: &verification_config::VerificationConfig
+    config: &VerificationConfig
 ) -> Result<HttpResponse, Error> {
 
     let path = req.path().to_string();
@@ -110,3 +113,5 @@ async fn verify_from_config(
 
     Ok(response_builder.body(response_data))
 }
+
+
