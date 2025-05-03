@@ -16,7 +16,6 @@ use std::fs;
 use log::info;
 use dotenv::dotenv;
 use env_logger;
-use rustls::ServerConfig as RustlsServerConfig;
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use rustls::{Certificate, PrivateKey, ServerConfig};
 use std::io::BufReader;
