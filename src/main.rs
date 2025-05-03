@@ -2,6 +2,7 @@ mod verification_handler;
 mod webhook_config;
 mod data_handler;
 mod endpoint_handler;
+mod cache;
 
 use verification_handler::{ verification_config};
 use webhook_config::WebhookConfig;
@@ -9,6 +10,7 @@ use webhook_config::WebhookConfig;
 use actix_web::{web, App, HttpServer, guard};
 use serde_yaml;
 use std::{env,  path::Path};
+use cache::OrderedCache;
 use std::fs;
 use log::{info};
 use dotenv::dotenv;
@@ -60,21 +62,36 @@ async fn main() -> std::io::Result<()> {
 
     let method = actix_web::http::Method::try_from(config.get_verification_config().get_verification_method().as_str()).unwrap_or(actix_web::http::Method::GET);
 
-    let data_routes = config.get_data_config().get_path_method_alias_vec();
+    let data_routes = config.get_data_config().get_alias_path_method_vec();
+
+    let ordered_cache = OrderedCache::new(data_routes.iter().map(|t| t.0.clone()).collect());
 
 
     HttpServer::new(move || {
         let method = method.clone();
         let mut app = App::new()
             .app_data(web::Data::new(config.clone()))
+            .app_data(web::Data::new(ordered_cache.clone()))
             .route(
-                "/verification/{path:.*}",
+                &format!("/{}/{{path:.*}}", verification_config::VERIFICATION_PATH),
                 web::route()
                     .guard(guard::fn_guard(move |ctx| ctx.head().method == method))
                     .to(endpoint_handler::verification_endpoint_handler),
+            )
+            // Health check route
+            .route(
+                "/health",
+                web::get().to(|| async {
+                    web::Json(serde_json::json!({
+                    "status": "healthy",
+                    "version": env!("CARGO_PKG_VERSION"),
+                    "timestamp": chrono::Utc::now().to_rfc3339(),
+                    "service": env!("CARGO_PKG_NAME"),
+                }))
+                }),
             );
 
-        // Add routes for each data endpoint
+        // Add routes for each data endpoint (for receiving data)
         for (alias, path, method_str) in &data_routes {
             let route_path = if path.starts_with('/') {
                 path.clone()
@@ -90,11 +107,20 @@ async fn main() -> std::io::Result<()> {
                 &route_path,
                 web::route()
                     .guard(guard::fn_guard(move |ctx| ctx.head().method == method))
-                    .to(move |req, payload, config| {
-                        endpoint_handler::data_endpoint_handler(req, payload, alias_clone.clone(), config)
+                    .to(move |req, payload, config, cache| {
+                        endpoint_handler::data_endpoint_handler(req, payload, alias_clone.clone(), config, cache)
                     }),
             );
         }
+
+        // Add data retrieval route
+        app = app.route(
+            "/api/data/{alias}",
+            web::get().to(|path: web::Path<String>, config, cache| async move {
+                let alias = path.into_inner();
+                endpoint_handler::data_retrieval_handler(alias, config, cache).await
+            }),
+        );
 
         app
     })

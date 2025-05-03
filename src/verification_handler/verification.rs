@@ -14,37 +14,27 @@ pub async fn verification_handler(
     req: HttpRequest,
     payload: web::Payload,
     config: VerificationConfig,
-) -> impl Responder {
-    // Collect the payload if body extraction is needed
+) -> Result<HttpResponse, Box<dyn std::error::Error>> {
+    // Check verification path
+    if !config.is_verification_path(req.path().to_string()) {
+        return Err("Invalid verification path".into());
+    }
+
+    // Collect the payload
     let mut body = BytesMut::new();
     let mut payload_stream = payload;
 
-    if !config.is_verification_path(req.path().to_string()) {
-        error!("Error bad verification path");
-        return HttpResponse::BadRequest().finish();
-    }
-
     while let Some(chunk) = payload_stream.next().await {
-        let chunk = match chunk {
-            Ok(chunk) => chunk,
-            Err(e) => {
-                error!("Error reading payload: {}", e);
-                return HttpResponse::BadRequest().finish();
-            }
-        };
+        let chunk = chunk?;
         body.extend_from_slice(&chunk);
     }
 
     let body_bytes = Bytes::from(body);
 
-    // Call our verification function with config file path
-    match verify_from_config(req, Some(body_bytes), &config).await {
-        Ok(response) => response,
-        Err(e) => {
-            error!("Verification failed: {}", e);
-            HttpResponse::BadRequest().body(format!("Verification failed: {}", e))
-        }
-    }
+    // Call our verification function with config
+    verify_from_config(req, Some(body_bytes), &config)
+        .await
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
 }
 
 async fn verify_from_config(

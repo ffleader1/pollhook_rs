@@ -1,30 +1,49 @@
-use actix_web::{web, HttpRequest, Responder};
+use actix_web::{web, HttpRequest, Responder, HttpResponse};
 use crate::verification_handler::verification::verification_handler;
 use crate::webhook_config::WebhookConfig;
+use crate::cache::{OrderedCache};
+use crate::data_handler::data_receiver::data_receiver;
+use log::{info, error};
 
 pub async fn verification_endpoint_handler(
     req: HttpRequest,
     payload: web::Payload,
     config: web::Data<WebhookConfig>,
 ) -> impl Responder {
-    let verification_config = config.get_verification_config_owned(); //This clone
-    verification_handler(
-        req,
-        payload,
-        verification_config,  
-    ).await
+    let verification_config = config.get_verification_config_owned();
+
+    match verification_handler(req, payload, verification_config).await {
+        Ok(response) => response,
+        Err(e) => {
+            error!("Verification failed: {}", e);
+            HttpResponse::BadRequest().body(format!("Verification failed: {}", e))
+        }
+    }
 }
 
 pub async fn data_endpoint_handler(
-    req: HttpRequest,
+    _req: HttpRequest,
     payload: web::Payload,
     alias: String,
-    config: web::Data<WebhookConfig>,
+    _config: web::Data<WebhookConfig>,
+    cache: web::Data<OrderedCache>,
 ) -> impl Responder {
-    let verification_config = config.get_verification_config_owned(); //This clone
-    verification_handler(
-        req,
-        payload,
-        verification_config,
-    ).await
+    match data_receiver(payload, alias.clone(), cache).await {
+        Ok((alias, key)) => {
+            info!("Successfully stored data for alias: {} with key: {}", alias, key);
+            HttpResponse::Ok().finish()
+        }
+        Err(e) => {
+            error!("Failed to process data for alias {}: {}", alias, e);
+            HttpResponse::Ok().finish() // Always return 200
+        }
+    }
+}
+
+pub async fn data_retrieval_handler(
+    alias: String,
+    config: web::Data<WebhookConfig>,
+    cache: web::Data<OrderedCache>,
+) -> impl Responder {
+    // TODO: RANDOM SHIT LOGIC TO GET DATA FOMR CACHE
 }

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Deserializer};
 
-const VERIFICATION_PATH: &str = "callhook";
+pub const VERIFICATION_PATH: &str = "callhook";
 #[derive(Debug, Deserialize, Clone)]
 pub struct TokenConfig {
     #[serde(rename = "in")]

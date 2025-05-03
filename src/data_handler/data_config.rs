@@ -6,8 +6,6 @@ pub struct EndpointDataMap {
     path: String,
     #[serde(default = "default_method")]
     method: String,
-    #[serde(skip)]
-    raw_data:Value,
 }
 
 fn default_method() -> String {
@@ -18,7 +16,7 @@ fn default_method() -> String {
 pub struct DataMap(pub HashMap<String, EndpointDataMap>);
 
 impl DataMap{
-    pub fn get_path_method_alias_vec(&self) -> Vec<(String, String, String)> {
+    pub fn get_alias_path_method_vec(&self) -> Vec<(String, String, String)> {
         self.0
             .iter()
             .map(|(alias, endpoint)| {
