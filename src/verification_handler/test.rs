@@ -120,9 +120,9 @@ mod test_verification {
 
     // Helper function to create a test WebhookConfig
     fn create_test_config(path: &str, method: &str) -> VerificationConfig {
-        // Create a JSON representation that can be deserialized into WebhookConfig
+        // Create a JSON representation that can be deserialized into VerificationConfig
         let config_json = json!({
-            "verification": {
+            
                 "path": path,
                 "method": method,
                 "token": {
@@ -137,9 +137,7 @@ mod test_verification {
                     "type": "text/plain",
                     "data": "{{challenge}}"
                 }
-            },
-            "data": {}
-        });
+            });
 
         serde_json::from_value(config_json).unwrap()
     }

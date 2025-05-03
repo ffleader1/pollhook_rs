@@ -116,7 +116,7 @@ impl VerificationConfig {
     }
 
     pub fn get_verification_method(&self) -> String {
-        self.method.clone()
+        self.method.clone().to_uppercase()
     }
 
     #[allow(dead_code)]
