@@ -16,6 +16,10 @@ use std::fs;
 use log::info;
 use dotenv::dotenv;
 use env_logger;
+use rustls::ServerConfig as RustlsServerConfig;
+use rustls_pemfile::{certs, pkcs8_private_keys};
+use rustls::{Certificate, PrivateKey, ServerConfig};
+use std::io::BufReader;
 
 pub const CALLBACK_PATH: &str = "callhook";
 pub const POLLING_PATH: &str = "pollhook";
@@ -23,6 +27,33 @@ pub const POLLING_PATH: &str = "pollhook";
 fn read_config(file_path: &str) -> Result<WebhookConfig, Box<dyn std::error::Error>> {
     let config_str = fs::read_to_string(file_path)?;
     let config: WebhookConfig = serde_yaml::from_str(&config_str)?;
+    Ok(config)
+}
+
+fn load_rustls_config() -> Result<ServerConfig, Box<dyn std::error::Error + Send + Sync>> {
+    let cert_file = &mut BufReader::new(fs::File::open("cert.pem")?);
+    let key_file = &mut BufReader::new(fs::File::open("key.pem")?);
+
+    let cert_chain = certs(cert_file)?
+        .into_iter()
+        .map(Certificate)
+        .collect::<Vec<_>>();
+
+    let mut keys: Vec<_> = pkcs8_private_keys(key_file)?
+        .into_iter()
+        .collect();
+
+    if keys.is_empty() {
+        return Err("No PKCS8-encoded private keys found in key.pem".into());
+    }
+
+    let key = PrivateKey(keys.remove(0));
+
+    let config = ServerConfig::builder()
+        .with_safe_defaults()
+        .with_no_client_auth()
+        .with_single_cert(cert_chain, key)?;
+
     Ok(config)
 }
 
@@ -65,7 +96,12 @@ async fn main() -> std::io::Result<()> {
     let data_routes = config.get_data_config().get_alias_path_method_vec();
     let ordered_cache = OrderedCache::new(data_routes.iter().map(|t| t.0.clone()).collect());
 
-    HttpServer::new(move || {
+    // Check if HTTPS should be used
+    let use_https =
+        (Path::new("cert.pem").exists() && Path::new("key.pem").exists()) ||
+            (env::var("SSL_CERT_FILE").is_ok() && env::var("SSL_KEY_FILE").is_ok());
+
+    let server = HttpServer::new(move || {
         let method = method.clone();
 
         let mut app = App::new()
@@ -110,8 +146,54 @@ async fn main() -> std::io::Result<()> {
         );
 
         app
-    })
-        .bind(("0.0.0.0", port))?
-        .run()
-        .await
+    });
+
+    if use_https {
+        let rustls_config = if let (Ok(cert_file), Ok(key_file)) =
+            (env::var("SSL_CERT_FILE"), env::var("SSL_KEY_FILE")) {
+            // Load from environment variables
+            let cert_file = &mut BufReader::new(fs::File::open(cert_file)?);
+            let key_file = &mut BufReader::new(fs::File::open(key_file)?);
+
+            let cert_chain = certs(cert_file)?
+                .into_iter()
+                .map(Certificate)
+                .collect::<Vec<_>>();
+
+            let mut keys: Vec<_> = pkcs8_private_keys(key_file)?
+                .into_iter()
+                .collect();
+
+            if keys.is_empty() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "No PKCS8-encoded private keys found"
+                ));
+            }
+
+            let key = PrivateKey(keys.remove(0));
+
+            ServerConfig::builder()
+                .with_safe_defaults()
+                .with_no_client_auth()
+                .with_single_cert(cert_chain, key)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?
+        } else {
+            // Load from default files
+            load_rustls_config()
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?
+        };
+
+        info!("Starting server with HTTPS on port {}", port);
+        server
+            .bind_rustls(("0.0.0.0", port), rustls_config)?
+            .run()
+            .await
+    } else {
+        info!("Starting server with HTTP on port {}", port);
+        server
+            .bind(("0.0.0.0", port))?
+            .run()
+            .await
+    }
 }
