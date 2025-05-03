@@ -32,5 +32,9 @@ impl WebhookConfig {
     pub fn get_polling_config_owned(&self) -> PollingConfig {
         self.polling.clone()
     }
+    
+    pub fn init_polling_config(&mut self) {
+        self.polling = PollingConfig::new();
+    }
 }
 

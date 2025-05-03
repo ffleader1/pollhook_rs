@@ -1,11 +1,10 @@
-use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, Error, HttpRequest, HttpResponse};
 use actix_web::http::header;
 use bytes::{Bytes, BytesMut};
 use log::{debug, error};
 use futures::StreamExt;
-use crate::verification_handler::{extractors, verification_config};
+use crate::verification_handler::{extractors};
 use crate::verification_handler::verification_config::VerificationConfig;
-use crate::webhook_config::WebhookConfig;
 
 
 

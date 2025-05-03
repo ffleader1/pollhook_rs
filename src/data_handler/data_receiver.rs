@@ -1,11 +1,9 @@
 use crate::cache::OrderedCache;
-use crate::data_handler::data_config::DataMap;
-
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use actix_web::{web};
 use futures::StreamExt;
 use sha2::{Sha256, Digest};
 
-use log::{error, info};
+
 
 pub async fn data_receiver(
     mut payload: web::Payload,

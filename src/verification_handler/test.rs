@@ -1,5 +1,6 @@
 #[allow(unused_imports)]
 use super::*;
+#[allow(dead_code)]
 const VERIFICATION_PATH: &str = "callhook";
 #[cfg(test)]
 mod test_exact_query {
@@ -113,7 +114,6 @@ mod test_exact_query {
 
 #[cfg(test)]
 mod test_verification {
-    use crate::WebhookConfig;
     use super::*;
     use serde_json::json;
     use crate::verification_handler::verification_config::VerificationConfig;
@@ -279,5 +279,5 @@ mod test_verification {
         config.set_expected_token("new_token".to_string());
         assert_eq!(config.get_expected_token(), "new_token");
     }
-    
+
 }

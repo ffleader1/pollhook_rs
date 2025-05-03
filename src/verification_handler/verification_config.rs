@@ -110,6 +110,7 @@ fn default_method() -> String {
 }
 
 impl VerificationConfig {
+    #[allow(dead_code)]
     pub fn get_verification_path(&self) -> String {
         self.path.clone()
     }
@@ -165,7 +166,7 @@ impl VerificationConfig {
             None => false,
         }
     }
-    
+
     pub fn is_verification_path(&self, path_to_check: String) -> bool {
         // First check if base verification path is valid
         if !self.is_verification_path_valid() {

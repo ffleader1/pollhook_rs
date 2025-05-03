@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use serde::{Deserialize, Deserializer};
-use serde_json::Value;
+use serde::{Deserialize};
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct EndpointDataMap {
     path: String,

@@ -5,10 +5,7 @@ use crate::webhook_config::WebhookConfig;
 use crate::cache::{OrderedCache};
 use crate::data_handler::data_receiver::data_receiver;
 use log::{info, error};
-use std::time::Duration;
-use tokio::time::{sleep, timeout};
-use serde::{ Serialize, Deserialize};
-use serde_json::Value as JsonValue;
+
 
 pub async fn verification_endpoint_handler(
     req: HttpRequest,

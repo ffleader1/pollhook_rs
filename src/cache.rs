@@ -53,6 +53,7 @@ impl OrderedCache {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get(&self, alias: &str, key: &str) -> Option<JsonValue> {
         self.caches.get(alias)?.get(key).await
     }
@@ -76,6 +77,7 @@ impl OrderedCache {
         Ok(removed)
     }
 
+    #[allow(dead_code)]
     pub async fn remove_newest(&self, alias: &str, n: usize) -> Result<Vec<(String, JsonValue)>, &'static str> {
         let cache = self.caches.get(alias).ok_or("Alias not found")?;
         let order = self.orders.get(alias).ok_or("Alias not found")?;
@@ -94,32 +96,14 @@ impl OrderedCache {
 
         Ok(removed)
     }
-
-    // Optional: Add a new alias dynamically
-    pub fn add_alias(&mut self, alias: String) {
-        let ttl_seconds: u64 = env::var("CACHE_TTL")
-            .unwrap_or_else(|_| "300".to_string())
-            .parse()
-            .unwrap_or(300);
-
-        let cache = Arc::new(
-            MokaCache::builder()
-                .max_capacity(10_000)
-                .time_to_live(Duration::from_secs(ttl_seconds))
-                .build()
-        );
-        let order = Arc::new(Mutex::new(VecDeque::new()));
-
-        self.caches.insert(alias.clone(), cache);
-        self.orders.insert(alias, order);
-    }
-
+    
     // Check if an alias exists
     pub fn has_alias(&self, alias: &str) -> bool {
         self.caches.contains_key(alias)
     }
 
     // Get all aliases
+    #[allow(dead_code)]
     pub fn get_aliases(&self) -> Vec<String> {
         self.caches.keys().cloned().collect()
     }

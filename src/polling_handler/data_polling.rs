@@ -1,5 +1,4 @@
 use std::time::Duration;
-use log::info;
 use serde::Serialize;
 use tokio::time::{sleep, timeout};
 use crate::cache::OrderedCache;

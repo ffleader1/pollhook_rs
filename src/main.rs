@@ -53,6 +53,8 @@ async fn main() -> std::io::Result<()> {
     let verification_token = env::var("VERIFY_TOKEN").expect("VERIFY_TOKEN is not set");
 
     config.set_token(verification_token);
+    
+    config.init_polling_config();
 
     // Get port from environment or use default
     let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string()).parse::<u16>().unwrap();
