@@ -2,7 +2,7 @@ use serde::Deserialize;
 use crate::verification_handler::verification_config;
 use crate::data_handler::data_config;
 
-const VERIFICATION_PATH: &str = "verification";
+const VERIFICATION_PATH: &str = "callhook";
 
 
 

@@ -184,10 +184,6 @@ verification:
 - GitHub Webhooks
 - Generic webhook systems
 
-## 📝 License
-
-MIT License
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

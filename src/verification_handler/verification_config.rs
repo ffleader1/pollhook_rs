@@ -12,7 +12,7 @@ impl TokenConfig {
     pub fn get_in(&self) -> String {
         self.location.clone()
     }
-    
+
     pub fn get_locate(&self) -> String {
         self.locate.clone()
     }
@@ -83,11 +83,11 @@ impl ResponseConfig {
     pub fn get_content_type(&self) -> ContentType {
         self.content_type.clone()
     }
-    
+
     pub fn get_data(&self) -> String {
         self.data.clone()
     }
-    
+
     pub fn get_in_path(&self) -> Option<String> {
         self.in_path.clone()
     }
@@ -118,6 +118,7 @@ impl VerificationConfig {
         self.method.clone()
     }
 
+    #[allow(dead_code)]
     pub fn get_expected_token(&self) -> String {
         self.raw_token.clone()
     }
