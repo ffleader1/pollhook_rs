@@ -11,5 +11,5 @@ verification:
     data: "@challenge"
 data:
   meta_event:
-    path: /callhook/meta
+    path: /pollhook/meta
     method: POST  

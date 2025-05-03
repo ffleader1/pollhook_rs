@@ -10,6 +10,8 @@ use serde_json::Value as JsonValue;
 pub struct OrderedCache {
     caches: HashMap<String, Arc<MokaCache<String, JsonValue>>>,
     orders: HashMap<String, Arc<Mutex<VecDeque<String>>>>,
+    // Track recently added items to prevent duplicates
+    recently_added: HashMap<String, Arc<MokaCache<String, ()>>>,
 }
 
 impl OrderedCache {
@@ -19,8 +21,12 @@ impl OrderedCache {
             .and_then(|val| val.parse::<u64>().ok())
             .unwrap_or(300);
 
+
+        let recently_added_ttl_seconds: u64 = 200; // around 3 minutes default
+
         let mut caches = HashMap::new();
         let mut orders = HashMap::new();
+        let mut recently_added = HashMap::new();
 
         for alias in aliases {
             let cache = Arc::new(
@@ -31,17 +37,37 @@ impl OrderedCache {
             );
             let order = Arc::new(Mutex::new(VecDeque::new()));
 
+            // Cache for recently added items
+            let added_cache = Arc::new(
+                MokaCache::builder()
+                    .max_capacity(10_000)
+                    .time_to_live(Duration::from_secs(recently_added_ttl_seconds))
+                    .build()
+            );
+
             caches.insert(alias.clone(), cache);
-            orders.insert(alias, order);
+            orders.insert(alias.clone(), order);
+            recently_added.insert(alias, added_cache);
         }
 
-        Self { caches, orders }
+        Self { caches, orders, recently_added }
     }
 
     pub async fn insert(&self, alias: &str, key: String, value: JsonValue) -> Result<(), &'static str> {
         let cache = self.caches.get(alias).ok_or("Alias not found")?;
         let order = self.orders.get(alias).ok_or("Alias not found")?;
+        let recently_added_cache = self.recently_added.get(alias).ok_or("Alias not found")?;
 
+        // Check if this key was recently added
+        if recently_added_cache.get(&key).await.is_some() {
+            // Skip insertion if it was recently added
+            return Ok(());
+        }
+
+        // Add to recently added cache first to prevent race conditions
+        recently_added_cache.insert(key.clone(), ()).await;
+
+        // Add to main cache
         cache.insert(key.clone(), value).await;
 
         let mut order = order.lock().await;
@@ -96,7 +122,7 @@ impl OrderedCache {
 
         Ok(removed)
     }
-    
+
     // Check if an alias exists
     pub fn has_alias(&self, alias: &str) -> bool {
         self.caches.contains_key(alias)
