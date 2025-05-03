@@ -1,0 +1,15 @@
+verification:
+  path: /callhook/meta 
+  token:
+    in: query
+    locate: hub.verify_token 
+  challenge:  
+    in: query
+    locate: hub.challenge
+  response:
+    type: text/plain 
+    data: "@challenge"
+data:
+  meta_event:
+    path: /callhook/meta
+    method: POST  

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Deserializer};
 
-
+pub const VERIFICATION_PATH: &str = "callhook";
 #[derive(Debug, Deserialize, Clone)]
 pub struct TokenConfig {
     #[serde(rename = "in")]
@@ -12,7 +12,7 @@ impl TokenConfig {
     pub fn get_in(&self) -> String {
         self.location.clone()
     }
-    
+
     pub fn get_locate(&self) -> String {
         self.locate.clone()
     }
@@ -83,11 +83,11 @@ impl ResponseConfig {
     pub fn get_content_type(&self) -> ContentType {
         self.content_type.clone()
     }
-    
+
     pub fn get_data(&self) -> String {
         self.data.clone()
     }
-    
+
     pub fn get_in_path(&self) -> Option<String> {
         self.in_path.clone()
     }
@@ -110,19 +110,21 @@ fn default_method() -> String {
 }
 
 impl VerificationConfig {
-    pub fn get_path(&self) -> String{
+    #[allow(dead_code)]
+    pub fn get_verification_path(&self) -> String {
         self.path.clone()
     }
 
-    pub fn get_method(&self) -> String{
-        self.method.clone()
+    pub fn get_verification_method(&self) -> String {
+        self.method.clone().to_uppercase()
     }
 
+    #[allow(dead_code)]
     pub fn get_expected_token(&self) -> String {
         self.raw_token.clone()
     }
 
-    pub fn set_expected_token(&mut self, expected_token: String)  {
+    pub fn set_expected_token(&mut self, expected_token: String) {
         self.raw_token = expected_token;
     }
 
@@ -142,4 +144,112 @@ impl VerificationConfig {
     pub fn is_token_valid(&self, token: String) -> bool {
         self.raw_token.trim() == token.trim()
     }
+
+    pub fn is_verification_path_valid(&self) -> bool {
+        let verification_prefix = VERIFICATION_PATH.to_string();
+        let verification_path = self.path.clone();
+        let config_segments: Vec<&str> = verification_path.split('/').collect();
+        if config_segments.len() == 0 {
+            return false;
+        }
+
+        // Handle various path formats
+        match config_segments.first() {
+            Some(&"") => {
+                // Path starts with slash, like "/verification/..."
+                config_segments.get(1).map_or(false, |&segment| segment == verification_prefix)
+            },
+            Some(&segment) => {
+                // Path doesn't start with slash, like "verification/..." or just "verification"
+                segment == verification_prefix
+            },
+            None => false,
+        }
+    }
+
+    pub fn is_verification_path(&self, path_to_check: String) -> bool {
+        // First check if base verification path is valid
+        if !self.is_verification_path_valid() {
+            return false;
+        }
+
+        let path_template = self.path.clone();
+
+        if path_template.contains("...") {
+            // Split both paths into segments and filter out empty segments
+            let config_segments: Vec<&str> = path_template.split('/')
+                .filter(|s| !s.is_empty())
+                .collect();
+            let request_segments: Vec<&str> = path_to_check.split('/')
+                .filter(|s| !s.is_empty())
+                .collect();
+
+            let mut request_idx = 0;
+            let mut config_idx = 0;
+
+            while config_idx < config_segments.len() && request_idx < request_segments.len() {
+                match config_segments[config_idx] {
+                    "..." => {
+                        // Wildcard must match at least one segment
+                        if config_idx == config_segments.len() - 1 {
+                            // Last segment is wildcard, must have at least one remaining request segment
+                            return request_segments.len() - request_idx >= 1;
+                        }
+
+                        // Find next non-wildcard segment in config
+                        let next_config_idx = config_idx + 1;
+                        if next_config_idx >= config_segments.len() {
+                            break;
+                        }
+
+                        let next_segment = config_segments[next_config_idx];
+                        if next_segment == "..." {
+                            // Next segment is also wildcard, just advance
+                            config_idx += 1;
+                            continue;
+                        }
+
+                        // Save the current request index before looking for next segment
+                        let saved_request_idx = request_idx;
+
+                        // Find next occurrence of next_segment in request
+                        while request_idx < request_segments.len() && request_segments[request_idx] != next_segment {
+                            request_idx += 1;
+                        }
+
+                        if request_idx >= request_segments.len() {
+                            return false; // Couldn't find next segment
+                        }
+
+                        // Ensure wildcard matched at least one segment
+                        if request_idx == saved_request_idx {
+                            return false; // Wildcard didn't match any segments
+                        }
+
+                        // Move past the wildcard in config
+                        config_idx += 1;
+                    },
+                    segment if segment == request_segments[request_idx] => {
+                        // Exact match
+                        request_idx += 1;
+                        config_idx += 1;
+                    },
+                    _ => {
+                        // No match
+                        return false;
+                    }
+                }
+            }
+
+            // Check if we've consumed all necessary segments
+            return config_idx >= config_segments.len() ||
+                config_segments[config_idx..].iter().all(|&s| s == "...");
+        } else {
+            // Simple exact matching for paths without wildcards
+            let norm_config = path_template.trim_end_matches('/').trim_start_matches('/');
+            let norm_path = path_to_check.trim_end_matches('/').trim_start_matches('/');
+            norm_config == norm_path
+        }
+    }
+
 }
