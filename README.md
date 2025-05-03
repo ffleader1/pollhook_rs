@@ -163,13 +163,9 @@ verification:
 
 ## 🚀 Usage
 
-1. Start the server:
+1. Configure your yaml file for verification and data retrieval
 
-```bash
-./target/release/webhook-poller
-```
-
-2. Configure your webhook provider to use your public endpoint
+2. Start the server.
 
 3. Use the polling client (in development) to retrieve webhook data from your local network
 
