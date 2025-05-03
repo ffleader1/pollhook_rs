@@ -1,6 +1,6 @@
 use serde::{Deserialize, Deserializer};
 
-pub const VERIFICATION_PATH: &str = "callhook";
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct TokenConfig {
     #[serde(rename = "in")]
@@ -146,7 +146,7 @@ impl VerificationConfig {
     }
 
     pub fn is_verification_path_valid(&self) -> bool {
-        let verification_prefix = VERIFICATION_PATH.to_string();
+        let verification_prefix = super::super::CALLBACK_PATH;
         let verification_path = self.path.clone();
         let config_segments: Vec<&str> = verification_path.split('/').collect();
         if config_segments.len() == 0 {
