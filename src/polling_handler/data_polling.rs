@@ -34,12 +34,12 @@ pub async fn retrieve_data_with_polling(
     // Long polling with timeout
     match timeout(polling_config.get_timeout(), poll_for_data(cache, alias, &max_polled_item)).await {
         Ok(Ok(data_items)) if !data_items.is_empty() => {
-            let data_with_keys = add_cache_keys_to_data(data_items);
+            let values: Vec<JsonValue> = data_items.into_iter().map(|(_, v)| v).collect();
             Ok(DataResponse {
                 success: true,
-                message: format!("Retrieved {} items after polling", data_with_keys.len()),
-                count: data_with_keys.len(),
-                data: data_with_keys,
+                message: format!("Retrieved {} items after polling", values.len()),
+                count: values.len(),
+                data: values,
             })
         }
         Ok(Ok(_)) | Ok(Err(_)) | Err(_) => {
@@ -78,11 +78,3 @@ async fn poll_for_data(
     }
 }
 
-fn add_cache_keys_to_data(items: Vec<(String, JsonValue)>) -> Vec<JsonValue> {
-    items.into_iter().map(|(key, mut value)| {
-        if let JsonValue::Object(ref mut map) = value {
-            map.insert("_cache_key".to_string(), JsonValue::String(key));
-        }
-        value
-    }).collect()
-}
